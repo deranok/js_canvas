@@ -1,0 +1,204 @@
+<!--
+   bouncing_box.html
+   
+   Copyright 2024 jeff <jeff@lightrain>
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.
+   
+   
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+	<title>Bouncing box</title>
+	<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+  <style>
+    body {
+      margin: 0px;
+      padding: 0px;
+    }
+  </style>
+  <script>
+    let ui = {};
+    
+    function initState() {
+      ui.box = {
+        width: 40,
+        height: 40
+      }
+      ui.state = {
+        anim_running: false
+      }
+      ui.canvas = document.querySelector("#canvas");
+      ui.animation_rate_hz = 40;
+      // todo ui.animation_speed
+      xState("init");
+    }
+    
+    function xState(eventName) {
+      // eventName from eventQueue
+      if(eventName == "init") {
+        // monitor events
+        ui.canvas.onmousedown = (ev) => eventQueue(ev);
+        ui.canvas.onmouseup = (ev) => eventQueue(ev);
+        window.onresize = (ev) => eventQueue(ev);
+        render_canvas();
+        ui.state.anim_running = true;
+        start_anim();
+      }
+      
+      if(eventName == "drag_start") {
+        if(ui.state.anim_running){
+          stop_anim();
+          ui.state.dragging = true;
+          ui.dragStartX = ui.last_event.clientX;
+          ui.dragStartY = ui.last_event.clientY;
+        }
+      }
+      
+      if(eventName == "drag_end") {
+        if(ui.state.dragging) {
+          reposition_box();
+          ui.state.dragging = false;
+          ui.box.X = ui.box.X + ui.last_event.clientX - ui.dragStartX;
+          ui.box.Y = ui.box.Y + ui.last_event.clientY - ui.dragStartY;
+          start_anim();
+        }
+      }
+      
+      if(eventName == "resize") {
+        render_canvas();
+        //~ render();
+      }
+    }
+    
+    function start_anim() {
+      function step(ts) {
+        if(ui.last_animation_ts == null) {
+          ui.last_animation_ts = ts;
+          ui.animation_request = window.requestAnimationFrame(step);
+        } else if((ts - ui.last_animation_ts) > (1000/ui.animation_rate_hz)) {
+          if(!ui.box.deltaX || (ui.box.X <= 0)) ui.box.deltaX = 5;
+          if(!ui.box.deltaY || (ui.box.Y <= 0)) ui.box.deltaY = 5;
+          if((ui.box.X + ui.box.width) > ui.canvas.width) {
+            ui.box.deltaX = -5;
+          }
+          if((ui.box.Y + ui.box.height) > ui.canvas.height) {
+            ui.box.deltaY = -5;
+          }
+          render();
+          ui.last_animation_ts = ts;
+          ui.animation_request = window.requestAnimationFrame(step);
+        } else {
+          ui.animation_request = window.requestAnimationFrame(step);
+        }
+      }
+      ui.animation_request = window.requestAnimationFrame(step);
+    }
+    
+    function stop_anim() {
+      window.cancelAnimationFrame(ui.animation_request);
+    }
+    
+    function render_canvas() {
+      let fullscreen = {
+        width: window.innerWidth,
+        height: window.innerHeight
+      }
+      const ctx = canvas.getContext("2d");
+      ui.canvas.setAttribute("width", fullscreen.width);
+      ui.canvas.setAttribute("height", fullscreen.height);
+      let canvas_width = canvas.getAttribute("width");
+      let canvas_height = canvas.getAttribute("height");
+      
+      //background
+      ctx.beginPath();
+      ctx.rect(0, 0, fullscreen.width, fullscreen.height);
+      ctx.fillStyle = "black";
+      ctx.fill();
+    }
+    
+    function reposition_box() {
+      
+    }
+    
+    function eventQueue(event) {
+      // determines the event and triggers the xState function
+      //~ console.log(event);
+      if(event.type == "mousedown") {
+        if(
+          (event.clientX > ui.box.X) && (event.clientX < (ui.box.X + ui.box.width)) && 
+          (event.clientY > ui.box.Y) && (event.clientY < (ui.box.Y + ui.box.height))
+        ) {
+          ui.last_event = event;
+          xState("drag_start");
+        }
+      }
+      
+      if(event.type == "mouseup") {
+        ui.last_event = event;
+        xState("drag_end");
+      }
+      
+      if(event.type == "resize") {
+        xState("resize");
+      }
+    }
+    
+    function render() {
+      const ctx = canvas.getContext("2d");
+      
+      // box
+      if(ui.box.X == null) ui.box.X = 20;
+      if(ui.box.Y == null) ui.box.Y = 20;
+      
+      ctx.beginPath();
+      ctx.rect(ui.box.X, ui.box.Y, ui.box.width, ui.box.height);
+      ctx.fillStyle = "black";
+      ctx.fill();
+      
+      if(ui.box.deltaX) ui.box.X = ui.box.X + ui.box.deltaX;
+      if(ui.box.deltaY) ui.box.Y = ui.box.Y + ui.box.deltaY;
+      
+      ctx.beginPath();
+      ctx.rect(
+        ui.box.X, 
+        ui.box.Y, 
+        ui.box.width, 
+        ui.box.height
+      );
+      ctx.fillStyle = "yellow";
+      ctx.fill();
+      //~ console.log(canvas, ui.box);
+    }
+    
+    window.onload = function(){
+      initState();
+      render();
+    } 
+  </script>
+</head>
+
+<body>
+    <canvas id="canvas">
+      This should show a box bouncing around the screen.
+    </canvas>
+</body>
+
+</html>
